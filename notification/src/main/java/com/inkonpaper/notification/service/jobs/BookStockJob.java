@@ -15,7 +15,7 @@ public class BookStockJob {
 
     HttpClient httpClient = HttpClient.newHttpClient();
     HttpRequest request = HttpRequest.newBuilder()
-        .uri(URI.create("http://your-microservice-url/book-stock"))
+        .uri(URI.create(""))
         .build();
 
     HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());

@@ -5,7 +5,8 @@ import com.inkonpaper.catalog.service.controllers.dtos.BookRequestInputDto;
 import com.inkonpaper.catalog.service.mappers.BookMapper;
 import com.inkonpaper.catalog.service.services.BookService;
 import com.inkonpaper.catalog.service.services.BookServiceImpl;
-import io.swagger.annotations.ApiOperation;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +33,6 @@ public class BookController {
     this.bookService = bookService;
   }
 
-  @ApiOperation("Get all books")
   @GetMapping
   public ResponseEntity<List<BookOutputDto>> getBooks() {
 
@@ -43,6 +43,8 @@ public class BookController {
   }
 
   @GetMapping("/{name}")
+  @CircuitBreaker(name = "bookService", fallbackMethod = "fallbackGetBookByName")
+  @Retry(name = "getBookByName", fallbackMethod = "fallbackGetBookByName")
   public ResponseEntity<BookOutputDto> getBookByName(@PathVariable String name) {
 
     var book = bookService.getBookByName(name);
@@ -55,6 +57,8 @@ public class BookController {
   }
 
   @GetMapping("/isbn/{isbn}")
+  @CircuitBreaker(name = "bookService", fallbackMethod = "fallbackGetBookByIsbn")
+  @Retry(name = "getBookByIsbn", fallbackMethod = "fallbackGetBookByIsbn")
   public ResponseEntity<BookOutputDto> getBookByIsbn(@PathVariable String isbn) {
 
     var book = bookService.getBookByIsbn(isbn);
@@ -92,5 +96,13 @@ public class BookController {
     } else {
       return ResponseEntity.notFound().build();
     }
+  }
+
+  public ResponseEntity<BookOutputDto> fallbackGetBookByName(String name, Throwable throwable) {
+    return new ResponseEntity<>(HttpStatus.SERVICE_UNAVAILABLE);
+  }
+
+  public ResponseEntity<BookOutputDto> fallbackGetBookByIsbn(String isbn, Throwable throwable) {
+    return new ResponseEntity<>(HttpStatus.SERVICE_UNAVAILABLE);
   }
 }
