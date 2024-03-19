@@ -13,7 +13,7 @@ public interface BookService {
 
   Optional<Book> getBookByIsbn(String isbn);
 
-  void createBook(BookRequestInputDto bookRequest);
+  void createBook(BookRequestInputDto bookRequest) throws Exception;
 
   boolean deleteBook(Long id);
 

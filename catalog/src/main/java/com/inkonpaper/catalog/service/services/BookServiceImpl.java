@@ -10,13 +10,19 @@ import com.inkonpaper.catalog.service.domain.entities.Language;
 import com.inkonpaper.catalog.service.domain.entities.Publisher;
 import com.inkonpaper.catalog.service.domain.entities.Tag;
 import com.inkonpaper.catalog.service.domain.repositories.BookRepository;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 @Slf4j
@@ -46,17 +52,13 @@ public class BookServiceImpl implements BookService {
     return bookRepository.findByIsbn(isbn);
   }
 
-  public void createBook(BookRequestInputDto bookRequest) {
-    try {
-      Book book = mapToBookEntity(bookRequest);
-
-      var persistedBook = bookRepository.save(book);
-
-      createStockForBook(persistedBook.getId(), bookRequest.getStockAvailable());
-
-    } catch (Exception ex) {
-      log.error("Error creating book: {}", ex.getMessage());
-    }
+  @Transactional
+  @Retryable(value = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
+  @CircuitBreaker(name = "createBook", fallbackMethod = "fallbackCreateBook")
+  public void createBook(BookRequestInputDto bookRequest) throws Exception {
+    Book book = mapToBookEntity(bookRequest);
+    var persistedBook = bookRepository.save(book);
+    createStockForBook(persistedBook.getId(), bookRequest.getStockAvailable());
   }
 
   public boolean deleteBook(Long id) {
@@ -152,14 +154,17 @@ public class BookServiceImpl implements BookService {
     return book;
   }
 
-  private void createStockForBook(Long bookId, int stockAvailable) {
+  private void createStockForBook(Long bookId, int stockAvailable) throws Exception {
+    String stockServiceUrl = "http://localhost:8081/stock?bookId={bookId}&stockAvailable={stockAvailable}";
+    ResponseEntity<Void> responseEntity = restTemplate.postForEntity(stockServiceUrl, null,
+        Void.class, bookId, stockAvailable);
 
-    try {
-      String stockServiceUrl = "http://localhost:8081/stock?bookId={bookId}&stockAvailable={stockAvailable}";
-      restTemplate.postForEntity(stockServiceUrl, null, Void.class, bookId, stockAvailable);
-
-    } catch (Exception ex) {
-      log.error("Error creating stock for book: {}", ex.getMessage());
+    if (responseEntity.getStatusCode() != HttpStatus.CREATED) {
+      throw new Exception("Failed to create stock for book");
     }
+  }
+
+  public void fallbackCreateBook(Throwable throwable) {
+    log.error("Unable to create book: {}", throwable.getMessage());
   }
 }

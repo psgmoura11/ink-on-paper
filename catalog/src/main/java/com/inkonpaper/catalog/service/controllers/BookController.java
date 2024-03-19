@@ -71,7 +71,8 @@ public class BookController {
   }
 
   @PostMapping
-  public ResponseEntity<Void> createBook(@RequestBody BookRequestInputDto bookRequest) {
+  public ResponseEntity<Void> createBook(@RequestBody BookRequestInputDto bookRequest)
+      throws Exception {
 
     bookService.createBook(bookRequest);
     return ResponseEntity.status(HttpStatus.CREATED).build();
