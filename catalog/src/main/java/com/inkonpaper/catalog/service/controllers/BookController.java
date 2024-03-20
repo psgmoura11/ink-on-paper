@@ -43,8 +43,6 @@ public class BookController {
   }
 
   @GetMapping("/{name}")
-  @CircuitBreaker(name = "bookService", fallbackMethod = "fallbackGetBookByName")
-  @Retry(name = "getBookByName", fallbackMethod = "fallbackGetBookByName")
   public ResponseEntity<BookOutputDto> getBookByName(@PathVariable String name) {
 
     var book = bookService.getBookByName(name);
@@ -57,8 +55,6 @@ public class BookController {
   }
 
   @GetMapping("/isbn/{isbn}")
-  @CircuitBreaker(name = "bookService", fallbackMethod = "fallbackGetBookByIsbn")
-  @Retry(name = "getBookByIsbn", fallbackMethod = "fallbackGetBookByIsbn")
   public ResponseEntity<BookOutputDto> getBookByIsbn(@PathVariable String isbn) {
 
     var book = bookService.getBookByIsbn(isbn);
@@ -97,13 +93,5 @@ public class BookController {
     } else {
       return ResponseEntity.notFound().build();
     }
-  }
-
-  public ResponseEntity<BookOutputDto> fallbackGetBookByName(String name, Throwable throwable) {
-    return new ResponseEntity<>(HttpStatus.SERVICE_UNAVAILABLE);
-  }
-
-  public ResponseEntity<BookOutputDto> fallbackGetBookByIsbn(String isbn, Throwable throwable) {
-    return new ResponseEntity<>(HttpStatus.SERVICE_UNAVAILABLE);
   }
 }
